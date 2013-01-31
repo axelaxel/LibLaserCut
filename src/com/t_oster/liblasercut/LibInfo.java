@@ -41,6 +41,7 @@ public class LibInfo
       EpilogHelix.class,
       LaosCutter.class,
       Lasersaur.class,
+      SprinterMill.class,
       Dummy.class
     };
   }
