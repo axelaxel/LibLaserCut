@@ -292,7 +292,7 @@ public class SprinterMill extends LaserCutter
       //out.printf("G0 X%d Y%d\n", (double)(isFlipXaxis() ? Util.mm2px(bedWidth, resolution) - x : x), (double)(isFlipYaxis() ? Util.mm2px(bedHeight, resolution) - y : y));
       // todo: use double again(?)
       // todo: use isFlipAxis again (?)
-      out.printf("G0 X%f Y%f\n",  Util.px2mm(x,resolution),  Util.px2mm(y,resolution) );
+      out.printf(Locale.US,"G0 X%.2f Y%.2f\n",  isFlipXaxis() ? bedWidth - Util.px2mm(x,resolution): Util.px2mm(x,resolution), isFlipYaxis() ? bedWidth - Util.px2mm(y,resolution) : Util.px2mm(y,resolution));
   }
 
   private void loadBitmapLine(PrintStream out, List<Long> dwords)
@@ -401,7 +401,7 @@ public class SprinterMill extends LaserCutter
       //out.printf("G1 X%d Y%d\n", isFlipXaxis() ? (double)(Util.mm2px(bedWidth, resolution) - x ): (double)(x), isFlipYaxis() ? (double)(Util.mm2px(bedHeight, resolution) - y) : (double)(y));
       // todo use double again (?)
       // todo: use isFlipAxis again (?)
-      out.printf("G1 X%f Y%f\n", x,y);
+      out.printf(Locale.US,"G1 X%.3f Y%.2f\n", isFlipXaxis() ? bedWidth - Util.px2mm(x,resolution):Util.px2mm(x,resolution) , isFlipYaxis() ? bedWidth - Util.px2mm(y,resolution):Util.px2mm(y,resolution));
       out.printf("G0 Z%d \n",0);
   }
 
@@ -702,7 +702,7 @@ public class SprinterMill extends LaserCutter
     }
     else
     {
-        FileOutputStream o = new FileOutputStream(new File("/Users/fred/Desktop/SprinterMill.gcode"));
+        FileOutputStream o = new FileOutputStream(new File(System.getProperty("user.home")+"/Desktop/SprinterMill.gcode"));
         o.write(buffer.toByteArray());
         o.close();
         pl.taskChanged(this, "written.");
@@ -781,8 +781,8 @@ public class SprinterMill extends LaserCutter
     SETTING_UNIDIR,
     SETTING_BEDWIDTH,
     SETTING_BEDHEIGHT,
-    //SETTING_FLIPX,
-    //SETTING_FLIPY,
+    SETTING_FLIPX,
+    SETTING_FLIPY,
     //SETTING_MMPERSTEP,
     SETTING_TFTP,
     SETTING_RASTER_WHITESPACE,
