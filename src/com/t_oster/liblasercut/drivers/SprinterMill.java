@@ -258,6 +258,7 @@ public class SprinterMill extends LaserCutter
   {
     return (int) (Util.px2mm(px, dpi) / this.mmPerStep);
   }
+  
 
   private byte[] generateVectorGCode(VectorPart vp, double resolution) throws UnsupportedEncodingException
   {
@@ -291,7 +292,7 @@ public class SprinterMill extends LaserCutter
       //out.printf("G0 X%d Y%d\n", (double)(isFlipXaxis() ? Util.mm2px(bedWidth, resolution) - x : x), (double)(isFlipYaxis() ? Util.mm2px(bedHeight, resolution) - y : y));
       // todo: use double again(?)
       // todo: use isFlipAxis again (?)
-      out.printf("G0 X%f Y%f\n",  x,  y );
+      out.printf("G0 X%f Y%f\n",  Util.px2mm(x,resolution),  Util.px2mm(y,resolution) );
   }
 
   private void loadBitmapLine(PrintStream out, List<Long> dwords)
