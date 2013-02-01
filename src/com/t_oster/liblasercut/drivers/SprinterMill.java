@@ -23,6 +23,7 @@ import com.t_oster.liblasercut.JobPart;
 import com.t_oster.liblasercut.LaserCutter;
 import com.t_oster.liblasercut.LaserJob;
 import com.t_oster.liblasercut.LaserProperty;
+import com.t_oster.liblasercut.PowerSpeedFocusProperty;
 import com.t_oster.liblasercut.ProgressListener;
 import com.t_oster.liblasercut.Raster3dPart;
 import com.t_oster.liblasercut.RasterPart;
@@ -297,7 +298,7 @@ public class SprinterMill extends LaserCutter
     {
       out.printf(" "+d);
     }*/
-    /*out.printf("G01 %s ", ""+(dwords.size()*32));
+    /*out.printf("Gxx %s ", ""+(dwords.size()*32));
     for(Long d:dwords)
     {
       out.printf(" "+d);
@@ -559,6 +560,9 @@ public class SprinterMill extends LaserCutter
       if (bytes.size() > 0)
       {
         //add space on the left side
+        /**
+         * @todo set space according to mill bit diameter setting
+         */
         int space = (int) Util.mm2px(this.getAddSpacePerRasterLine(), resolution);
         while (space > 0 && lineStart.x >= 8)
         {
@@ -567,6 +571,9 @@ public class SprinterMill extends LaserCutter
           lineStart.x -=8;
         }
         //add space on the right side
+        /**
+         * @todo set space according to mill bit diameter setting
+         */
         space = (int) Util.mm2px(this.getAddSpacePerRasterLine(), resolution);
         int max = (int) Util.mm2px(this.getBedWidth(), resolution);
         while (space > 0 && lineStart.x+(8*bytes.size()) < max-8)
@@ -595,6 +602,94 @@ public class SprinterMill extends LaserCutter
       {
         dirRight = !dirRight;
       }
+    }
+    return result.toByteArray();
+  }
+  
+  private byte[] generatePseudoRasterGCode(RasterPart rp, double resolution) throws UnsupportedEncodingException {
+    ByteArrayOutputStream result = new ByteArrayOutputStream();
+    PrintStream out = new PrintStream(result, true, "US-ASCII");
+    boolean dirRight = true;
+    Point rasterStart = rp.getRasterStart();
+    /*PowerSpeedFocusProperty prop = (PowerSpeedFocusProperty) rp.getLaserProperty();
+    setSpeed(out, prop.getSpeed());
+    setPower(out, prop.getPower());*/
+    int tmp_power;
+    tmp_power =1;
+    /**
+     * @todo use parameter instead of fixed value (100) to set bit diameter
+     */
+    for (int line = 0; line < rp.getRasterHeight(); line=line+30) {
+      Point lineStart = rasterStart.clone();
+      lineStart.y += line;
+      List<Byte> bytes = new LinkedList<Byte>();
+      boolean lookForStart = true;
+      for (int x = 0; x < rp.getRasterWidth(); x++) {
+        if (lookForStart) {
+          if (rp.isBlack(x, line)) {
+            lookForStart = false;
+            bytes.add((byte) 255);
+          } else {
+            lineStart.x += 1;
+          }
+        } else {
+          bytes.add(rp.isBlack(x, line) ? (byte) 255 : (byte) 0);
+        }
+      }
+      //remove trailing zeroes
+      while (bytes.size() > 0 && bytes.get(bytes.size() - 1) == 0) {
+        bytes.remove(bytes.size() - 1);
+      }
+      if (bytes.size() > 0) {
+        if (dirRight) {
+          //add some space to the left
+          move(out, Math.max(0, (int) (lineStart.x - Util.mm2px(this.addSpacePerRasterLine, resolution))), lineStart.y, resolution);
+          //move to the first nonempyt point of the line
+          move(out, lineStart.x, lineStart.y, resolution);
+          byte old = bytes.get(0);
+          for (int pix = 0; pix < bytes.size(); pix++) {
+            if (bytes.get(pix) != old) {
+              if (old == 0) {
+                move(out, lineStart.x + pix, lineStart.y, resolution);
+              } else {
+                setPower(out, tmp_power * (0xFF & old) / 255);
+                line(out, lineStart.x + pix - 1, lineStart.y, resolution);
+                move(out, lineStart.x + pix, lineStart.y, resolution);
+              }
+              old = bytes.get(pix);
+            }
+          }
+          //last point is also not "white"
+          setPower(out, tmp_power * (0xFF & bytes.get(bytes.size() - 1)) / 255);
+          line(out, lineStart.x + bytes.size() - 1, lineStart.y, resolution);
+          //add some space to the right
+          move(out, Math.min((int) Util.mm2px(bedWidth, resolution), (int) (lineStart.x + bytes.size() - 1 + Util.mm2px(this.addSpacePerRasterLine, resolution))), lineStart.y, resolution);
+        } else {
+          //add some space to the right
+          move(out, Math.min((int) Util.mm2px(bedWidth, resolution), (int) (lineStart.x + bytes.size() - 1 + Util.mm2px(this.addSpacePerRasterLine, resolution))), lineStart.y, resolution);
+          //move to the last nonempty point of the line
+          move(out, lineStart.x + bytes.size() - 1, lineStart.y, resolution);
+          byte old = bytes.get(bytes.size() - 1);
+          for (int pix = bytes.size() - 1; pix >= 0; pix--) {
+            if (bytes.get(pix) != old || pix == 0) {
+              if (old == 0) {
+                move(out, lineStart.x + pix, lineStart.y, resolution);
+              } else {
+                setPower(out, tmp_power * (0xFF & old) / 255);
+                line(out, lineStart.x + pix + 1, lineStart.y, resolution);
+                move(out, lineStart.x + pix, lineStart.y, resolution);
+              }
+              old = bytes.get(pix);
+            }
+          }
+          //last point is also not "white"
+          setPower(out, tmp_power * (0xFF & bytes.get(0)) / 255);
+          line(out, lineStart.x, lineStart.y, resolution);
+          //add some space to the left
+          move(out, Math.max(0, (int) (lineStart.x - Util.mm2px(this.addSpacePerRasterLine, resolution))), lineStart.y, resolution);
+        }
+      }
+      dirRight = !dirRight;
     }
     return result.toByteArray();
   }
@@ -630,7 +725,8 @@ public class SprinterMill extends LaserCutter
       }
       else if (p instanceof RasterPart)
       {
-        out.write(this.generateSprinterMillRasterCode((RasterPart) p, p.getDPI()));
+        //out.write(this.generateSprinterMillRasterCode((RasterPart) p, p.getDPI()));
+          out.write(this.generatePseudoRasterGCode((RasterPart) p, p.getDPI()));
       }
       else if (p instanceof VectorPart)
       {
