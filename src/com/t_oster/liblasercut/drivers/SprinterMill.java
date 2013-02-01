@@ -286,13 +286,7 @@ public class SprinterMill extends LaserCutter
 
   private void move(PrintStream out, float x, float y, double resolution)
   {
-    //out.printf("0 %d %d\n", px2steps(isFlipXaxis() ? Util.mm2px(bedWidth, resolution) - x : x, resolution), px2steps(isFlipYaxis() ? Util.mm2px(bedHeight, resolution) - y : y, resolution));
-    //out.printf("G0 X%d Y%d\n", px2steps(isFlipXaxis() ? Util.mm2px(bedWidth, resolution) - x : x, resolution), px2steps(isFlipYaxis() ? Util.mm2px(bedHeight, resolution) - y : y, resolution));
-      
-      //out.printf("G0 X%d Y%d\n", (double)(isFlipXaxis() ? Util.mm2px(bedWidth, resolution) - x : x), (double)(isFlipYaxis() ? Util.mm2px(bedHeight, resolution) - y : y));
-      // todo: use double again(?)
-      // todo: use isFlipAxis again (?)
-      out.printf(Locale.US,"G0 X%.2f Y%.2f\n",  isFlipXaxis() ? bedWidth - Util.px2mm(x,resolution): Util.px2mm(x,resolution), isFlipYaxis() ? bedWidth - Util.px2mm(y,resolution) : Util.px2mm(y,resolution));
+    out.printf(Locale.US,"G0 X%.2f Y%.2f\n",  isFlipXaxis() ? bedWidth - Util.px2mm(x,resolution): Util.px2mm(x,resolution), isFlipYaxis() ? bedWidth - Util.px2mm(y,resolution) : Util.px2mm(y,resolution));
   }
 
   private void loadBitmapLine(PrintStream out, List<Long> dwords)
@@ -311,6 +305,9 @@ public class SprinterMill extends LaserCutter
     out.printf("\n");*/
   }
 
+  /**
+   * @todo rename and use for milling speed
+   */
   private float currentPower = -1;
   private void setPower(PrintStream out, float power)
   {
@@ -395,12 +392,10 @@ public class SprinterMill extends LaserCutter
   {
     //out.printf("1 %d %d\n", px2steps(isFlipXaxis() ? Util.mm2px(bedWidth, resolution) - x : x, resolution), px2steps(isFlipYaxis() ? Util.mm2px(bedHeight, resolution) - y : y, resolution));
       // set mill depth
-      // todo: use parameter
+      /**
+       * @todo use parameter to set the mill depth
+       */
       out.printf("G1 Z%d \n",10);
-      //out.printf("G1 X%d Y%d\n", px2steps(isFlipXaxis() ? Util.mm2px(bedWidth, resolution) - x : x, resolution), px2steps(isFlipYaxis() ? Util.mm2px(bedHeight, resolution) - y : y, resolution));
-      //out.printf("G1 X%d Y%d\n", isFlipXaxis() ? (double)(Util.mm2px(bedWidth, resolution) - x ): (double)(x), isFlipYaxis() ? (double)(Util.mm2px(bedHeight, resolution) - y) : (double)(y));
-      // todo use double again (?)
-      // todo: use isFlipAxis again (?)
       out.printf(Locale.US,"G1 X%.3f Y%.2f\n", isFlipXaxis() ? bedWidth - Util.px2mm(x,resolution):Util.px2mm(x,resolution) , isFlipYaxis() ? bedWidth - Util.px2mm(y,resolution):Util.px2mm(y,resolution));
       out.printf("G0 Z%d \n",0);
   }
@@ -542,7 +537,10 @@ public class SprinterMill extends LaserCutter
     boolean dirRight = true;
     Point rasterStart = rp.getRasterStart();
     this.setCurrentProperty(out, rp.getLaserProperty());
-    for (int line = 0; line < rp.getRasterHeight(); line++)
+    /**
+     * @todo use parameter instead of fixed value (10) to set bit diameter
+     */ 
+    for (int line = 0; line < rp.getRasterHeight(); line=line+10)
     {
       Point lineStart = rasterStart.clone();
       lineStart.y += line;
@@ -720,6 +718,7 @@ public class SprinterMill extends LaserCutter
       //according to mm/step
       resolutions = Arrays.asList(new Double[]
         {
+          25d,
           100d,
           200d,
           300d,
