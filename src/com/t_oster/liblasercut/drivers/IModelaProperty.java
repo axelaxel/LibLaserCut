@@ -29,13 +29,15 @@ import com.t_oster.liblasercut.platform.Util;
 public class IModelaProperty implements LaserProperty
 {
 
-  private static String DEPTH = "milling depth (mm)";
+  private static String DEPTH = "total milling depth (mm)";
+  private static String DEPTH_PER_LAYER = "milling depth per layer (mm)";
   private static String FEED_RATE = "feed rate (mm/min)";
   private static String SPINDLE_SPEED = "spindle speed (rpm)";
   private static String TOOL = "tool";
   private static String TOOL_DIAMETER = "tool diameter (mm)";
   
   private double depth = 0;
+  private double depthPerLayer = 0;
   private double feedRate = 1;
   private int spindleSpeed = 100;
   private int tool = 1;
@@ -49,6 +51,11 @@ public class IModelaProperty implements LaserProperty
   public double getDepth()
   {
     return depth;
+  }
+  
+  public double getDepthPerLayer()
+  {
+    return depthPerLayer;
   }
 
   public double getFeedRate()
@@ -109,7 +116,7 @@ public class IModelaProperty implements LaserProperty
   @Override
   public String[] getPropertyKeys()
   {
-    return new String[]{DEPTH, SPINDLE_SPEED, FEED_RATE, TOOL, TOOL_DIAMETER};
+    return new String[]{DEPTH, DEPTH_PER_LAYER, SPINDLE_SPEED, FEED_RATE, TOOL, TOOL_DIAMETER};
   }
 
   @Override
@@ -118,6 +125,10 @@ public class IModelaProperty implements LaserProperty
     if (DEPTH.equals(key))
     {
       depth = (Double) value;
+    }
+    else if (DEPTH_PER_LAYER.equals(key))
+    {
+      depthPerLayer = (Double) value;
     }
     else if (SPINDLE_SPEED.equals(key))
     {
@@ -143,6 +154,10 @@ public class IModelaProperty implements LaserProperty
     if (DEPTH.equals(key))
     {
       return depth;
+    }
+    else if (DEPTH_PER_LAYER.equals(key))
+    {
+      return depthPerLayer;
     }
     else if (SPINDLE_SPEED.equals(key))
     {

@@ -74,6 +74,7 @@ public class IModelaMill extends LaserCutter
   private static String BED_HEIGHT = "bed height";
   private static String FLIP_YAXIS = "flip y axis";
   private static String HOME_ON_END = "move home after job";
+  private static String OMIT_PRE_AND_POSTFIX = "omit %\n O00000001 and \n% in gcode for mills with sprinter based firmware";
 
   private Map<String, Object> properties = new LinkedHashMap<String, Object>();
   public IModelaMill()
@@ -84,6 +85,7 @@ public class IModelaMill extends LaserCutter
     properties.put(PORT, (Integer) 5000);
     properties.put(HOME_ON_END, (Boolean) true);
     properties.put(FLIP_YAXIS, (Boolean) false);
+    properties.put(OMIT_PRE_AND_POSTFIX, (Boolean) false);
   }
   
   private boolean spindleOn = false;
@@ -98,8 +100,12 @@ public class IModelaMill extends LaserCutter
   
   private void writeInitializationCode(PrintStream out)
   {
-    out.println("%");
-    out.println("O00000001");//program number 00000001 - can be changed to any number, must be 8 digits
+    //mills with sprinter based firmware can't handle % and program number in gcode
+    if (properties.get(OMIT_PRE_AND_POSTFIX) == Boolean.FALSE) 
+    {
+      out.println("%");
+      out.println("O00000001");//program number 00000001 - can be changed to any number, must be 8 digits
+    }
     out.println("G90");//absolute positioning
     out.println("G21");//select mm as input unit
   }
@@ -113,7 +119,11 @@ public class IModelaMill extends LaserCutter
       out.println("G0 X0 Y0");//go back to home
     }
     out.println("M02");//END_OF_PROGRAM
-    out.println("%");
+    //mills with sprinter based firmware can't handle % and program number in gcode
+    if (properties.get(OMIT_PRE_AND_POSTFIX) == Boolean.FALSE) 
+    {
+      out.println("%");
+    }
   }
   
   //all depth values are positive, 0 is top
@@ -125,7 +135,7 @@ public class IModelaMill extends LaserCutter
   private int tool = 0;
   //is applied to next G command
   private String parameters = "";
-  
+  private double currentLayer = 1;
   private void moveHead(PrintStream out, double depth)
   {
     if (headdepth > depth)
@@ -162,16 +172,30 @@ public class IModelaMill extends LaserCutter
   
   private void applyProperty(PrintStream out, IModelaProperty pr)
   {
-    linedepth = pr.getDepth();
+    //linedepth = pr.getDepth();
+    if (pr.getDepth()>=pr.getDepthPerLayer() && pr.getDepthPerLayer()>0)
+    {
+      linedepth = (pr.getDepth()/Math.ceil(pr.getDepth()/pr.getDepthPerLayer()))*currentLayer;
+    }
+    else
+    {
+      linedepth = pr.getDepth();
+    }
     if (pr.getSpindleSpeed() != spindleSpeed)
     {
       spindleSpeed = pr.getSpindleSpeed();
-      parameters += String.format(Locale.ENGLISH, " S%f\n", spindleSpeed);
+      //parameters += String.format(Locale.ENGLISH, " S%f\n", spindleSpeed);
+      parameters += String.format(Locale.ENGLISH, " S%f", spindleSpeed); // for mill s with sprinter firmware gcode F parameter must not be in a separate line.
+      
     }
     if (pr.getFeedRate() != feedRate)
     {
       feedRate = pr.getFeedRate();
-      parameters += String.format(Locale.ENGLISH, " F%f\n", feedRate);
+      parameters += String.format(Locale.ENGLISH, " F%f\n", feedRate); 
+    }
+    else
+    { 
+      parameters += "\n";
     }
     if (pr.getTool() != tool)
     {
@@ -226,38 +250,42 @@ public class IModelaMill extends LaserCutter
     //how many pixels(%) have to be black until we move the head down
     double treshold = 0.7;
     IModelaProperty prop = (IModelaProperty) p.getLaserProperty();
-    int toolDiameterInPx = (int) Util.mm2px(prop.getToolDiameter(), dpi);
-    applyProperty(out, prop);
-    boolean leftToRight = true;
-    Point offset = p.getRasterStart();
-    move(out, Util.px2mm(offset.x, dpi), Util.px2mm(offset.y, dpi));
-    for (int y = 0; y < p.getRasterHeight(); y+= toolDiameterInPx/2)
+    for (int layer =1 ; layer <= (prop.getDepth()>=prop.getDepthPerLayer() && prop.getDepthPerLayer()>0 ? Math.ceil(prop.getDepth()/prop.getDepthPerLayer()) : 1);layer+=1)
     {
-      for (int x = leftToRight ? 0 : p.getRasterWidth() - 1; 
-        (leftToRight && x < p.getRasterWidth()) || (!leftToRight && x >= 0); 
-        x += leftToRight ? 1 : -1)
+      currentLayer=layer;
+      int toolDiameterInPx = (int) Util.mm2px(prop.getToolDiameter(), dpi);
+      applyProperty(out, prop);
+      boolean leftToRight = true;
+      Point offset = p.getRasterStart();
+      move(out, Util.px2mm(offset.x, dpi), Util.px2mm(offset.y, dpi));
+      for (int y = 0; y < p.getRasterHeight(); y+= toolDiameterInPx/2)
       {
-        if (getBlackPercent(p, x, y, toolDiameterInPx)<treshold)
+        for (int x = leftToRight ? 0 : p.getRasterWidth() - 1; 
+          (leftToRight && x < p.getRasterWidth()) || (!leftToRight && x >= 0); 
+          x += leftToRight ? 1 : -1)
         {
-          //skip intermediate move commands
-          while((leftToRight && x+1 < p.getRasterWidth()) || (!leftToRight && x-1 >= 0) && getBlackPercent(p, leftToRight ? x+1 : x-1, y, toolDiameterInPx) < treshold)
+          if (getBlackPercent(p, x, y, toolDiameterInPx)<treshold)
           {
-            x+= leftToRight ? 1 : -1;
+            //skip intermediate move commands
+            while((leftToRight && x+1 < p.getRasterWidth()) || (!leftToRight && x-1 >= 0) && getBlackPercent(p, leftToRight ? x+1 : x-1, y, toolDiameterInPx) < treshold)
+            {
+             x+= leftToRight ? 1 : -1;
+            }
+            move(out, Util.px2mm(offset.x+x, dpi), Util.px2mm(offset.y+y, dpi));
           }
-          move(out, Util.px2mm(offset.x+x, dpi), Util.px2mm(offset.y+y, dpi));
-        }
-        else
-        {
-          //skip intermediate line commands
-          while((leftToRight && x+1 < p.getRasterWidth()) || (!leftToRight && x-1 >= 0) && getBlackPercent(p, leftToRight ? x+1 : x-1, y, toolDiameterInPx) >= treshold)
+          else
           {
-            x+= leftToRight ? 1 : -1;
+            //skip intermediate line commands
+            while((leftToRight && x+1 < p.getRasterWidth()) || (!leftToRight && x-1 >= 0) && getBlackPercent(p, leftToRight ? x+1 : x-1, y, toolDiameterInPx) >= treshold)
+            {
+              x+= leftToRight ? 1 : -1;
+            }
+            line(out, Util.px2mm(offset.x+x, dpi), Util.px2mm(offset.y+y, dpi));
           }
-          line(out, Util.px2mm(offset.x+x, dpi), Util.px2mm(offset.y+y, dpi));
         }
+        //invert direction
+        leftToRight = !leftToRight;
       }
-      //invert direction
-      leftToRight = !leftToRight;
     }
   }
   
@@ -293,29 +321,39 @@ public class IModelaMill extends LaserCutter
   private void writeVectorCode(VectorPart p, PrintStream out)
   {
     double dpi = p.getDPI();
-    for (VectorCommand c : p.getCommandList())
+    VectorCommand c1 = p.getCommandList()[0];
+    IModelaProperty pr = (IModelaProperty) c1.getProperty();
+    
+    for (int layer =1 ; layer <= (pr.getDepth()>=pr.getDepthPerLayer() && pr.getDepthPerLayer()>0 ? Math.ceil(pr.getDepth()/pr.getDepthPerLayer()) : 1);layer+=1)
     {
-      switch (c.getType())
+      currentLayer=layer;
+      for (VectorCommand c : p.getCommandList())
       {
-        case MOVETO:
+        switch (c.getType())
         {
-          double x = Util.px2mm(c.getX(), dpi);
-          double y = getBedHeight() - Util.px2mm(c.getY(), dpi); //mill origin is bottom left, so we have to mirror y coordinates
-          move(out, x, y);
-          break;
-        }
-        case LINETO:
-        {
-          double x = Util.px2mm(c.getX(), dpi);
-          double y = getBedHeight() - Util.px2mm(c.getY(), dpi); //mill origin is bottom left, so we have to mirror y coordinates
-          line(out, x, y);
-          break;
-        }
-        case SETPROPERTY:
-        {
-          IModelaProperty pr = (IModelaProperty) c.getProperty();
-          applyProperty(out, pr);
-          break;
+          case MOVETO:
+          {
+            double x = Util.px2mm(c.getX(), dpi);
+            //double y = getBedHeight() - Util.px2mm(c.getY(), dpi); //mill origin is bottom left, so we have to mirror y coordinates
+            double y = Util.px2mm(c.getY(), dpi);
+            move(out, x, y);
+            break;
+          }
+          case LINETO:
+          {
+            double x = Util.px2mm(c.getX(), dpi);
+            //double y = getBedHeight() - Util.px2mm(c.getY(), dpi); //mill origin is bottom left, so we have to mirror y coordinates
+            double y = Util.px2mm(c.getY(), dpi);
+            line(out, x, y);
+            break;
+          }
+          case SETPROPERTY:
+          {
+            //IModelaProperty pr = (IModelaProperty) c.getProperty();
+            pr = (IModelaProperty) c.getProperty();
+            applyProperty(out, pr);
+            break;
+          }
         }
       }
     }
