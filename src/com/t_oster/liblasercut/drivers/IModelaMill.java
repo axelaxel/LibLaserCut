@@ -267,7 +267,7 @@ public class IModelaMill extends LaserCutter
           if (getBlackPercent(p, x, y, toolDiameterInPx)<treshold)
           {
             //skip intermediate move commands
-            while((leftToRight && x+1 < p.getRasterWidth()) || (!leftToRight && x-1 >= 0) && getBlackPercent(p, leftToRight ? x+1 : x-1, y, toolDiameterInPx) < treshold)
+            while(((leftToRight && x+1 < p.getRasterWidth()) || (!leftToRight && x-1 >= 0)) && getBlackPercent(p, leftToRight ? x+1 : x-1, y, toolDiameterInPx) < treshold)
             {
              x+= leftToRight ? 1 : -1;
             }

@@ -30,7 +30,7 @@ public class IModelaProperty implements LaserProperty
 {
 
   private static String DEPTH = "total milling depth (mm)";
-  private static String DEPTH_PER_LAYER = "milling depth per layer (mm)";
+  private static String DEPTH_PER_LAYER = "milling depth per layer (mm) [Zustellung]";
   private static String FEED_RATE = "feed rate (mm/min)";
   private static String SPINDLE_SPEED = "spindle speed (rpm)";
   private static String TOOL = "tool";
