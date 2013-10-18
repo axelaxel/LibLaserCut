@@ -276,7 +276,7 @@ public class IModelaMill extends LaserCutter
           else
           {
             //skip intermediate line commands
-            while((leftToRight && x+1 < p.getRasterWidth()) || (!leftToRight && x-1 >= 0) && getBlackPercent(p, leftToRight ? x+1 : x-1, y, toolDiameterInPx) >= treshold)
+            while(((leftToRight && x+1 < p.getRasterWidth()) || (!leftToRight && x-1 >= 0)) && getBlackPercent(p, leftToRight ? x+1 : x-1, y, toolDiameterInPx) >= treshold)
             {
               x+= leftToRight ? 1 : -1;
             }
@@ -307,7 +307,7 @@ public class IModelaMill extends LaserCutter
         //scale the depth according to the average grey value
         linedepth = getAverageGrey(p, x, y, toolDiameterInPx)*prop.getDepth();
         //skip intermediate line commands
-        while((leftToRight && x+1 < p.getRasterWidth()) || (!leftToRight && x-1 >= 0) && getAverageGrey(p, leftToRight ? x+1 : x-1, y, toolDiameterInPx) == linedepth)
+        while(((leftToRight && x+1 < p.getRasterWidth()) || (!leftToRight && x-1 >= 0)) && getAverageGrey(p, leftToRight ? x+1 : x-1, y, toolDiameterInPx) == linedepth)
         {
           x+= leftToRight ? 1 : -1;
         }
